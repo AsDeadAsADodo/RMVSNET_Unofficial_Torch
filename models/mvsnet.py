@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
+
 from .module import *
 from .warping import get_homographies, warp_homographies
 from .gru import GRU
@@ -36,19 +38,20 @@ class CostConvGRURegNet(nn.Module):
         gru1_output_size = 16
         gru2_output_size = 4
         gru3_output_size = 2
-        self.cost_1 = None
-        self.cost_2 = None
-        self.cost_3 = None
         self.gru1 = GRU(gru_input_size, gru1_output_size, 3)
         self.gru2 = GRU(gru1_output_size, gru2_output_size, 3)
         self.gru3 = GRU(gru2_output_size, gru3_output_size, 3)
         self.prob = nn.Conv2d(2, 1, 3, 1, 1)
         
     def forward(self,x):
-        self.cost_1 = self.gru1(x,self.cost_1)
-        self.cost_2 = self.gru2(self.cost_1,self.cost_2)
-        self.cost_3 = self.gru3(self.cost_2,self.cost_3)
-        return self.prob(self.cost_3)
+        N, C, H, W = x.shape
+        h1= torch.zeros((N, 16, H, W), dtype=torch.float, device=x.device)
+        h2= torch.zeros((N, 4, H, W), dtype=torch.float, device=x.device)
+        h3= torch.zeros((N, 2, H, W), dtype=torch.float, device=x.device)
+        cost_1 = self.gru1(x,h1)
+        cost_2 = self.gru2(cost_1,h2)
+        cost_3 = self.gru3(cost_2,h3)
+        return self.prob(cost_3)
     
 
 class CostRegNet(nn.Module):
@@ -183,12 +186,13 @@ class MVSNet(nn.Module):
             depth_costs.append(reg_cost)
             
         prob_volume = torch.cat(depth_costs, 1)
+        #print(prob_volume.shape)
         # softmax prob_volume
         softmax_probs = torch.softmax(prob_volume, 1)
         
         depth, prob_image = self.compute_depth(softmax_probs, depth_start, depth_interval, number_of_depth_planes)
-		
-		return {'prob_volume': softmax_probs}
+        
+        return {'prob_volume': softmax_probs}
         
         # step 4. depth map refinement
         #if not self.refine:

@@ -217,7 +217,7 @@ def test_sample(sample, detailed_summary=True):
     outputs = model(sample_cuda["imgs"], sample_cuda["intrinsics"], sample_cuda["extrinsics"],sample_cuda["depth_planes"])
 
     loss,depth_est,photometric_confidence = model_loss(prob_volume, depth_gt, mask,sample_cuda["depth_values"])
-	prob_volume = outputs["prob_volume"]
+    prob_volume = outputs["prob_volume"]
     scalar_outputs = {"loss": loss}
     image_outputs = {"depth_est": depth_est * mask,
                      "photometric_confidence": photometric_confidence * mask, 
