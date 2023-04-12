@@ -13,22 +13,20 @@ class ConvGRUCell(nn.Module):
                  output_channel,
                  kernel,
                  activation=nn.Tanh(),
-                 normalize=True):
+                 ):
         super(ConvGRUCell, self).__init__()
-        self._input_channel = input_channel
-        self._output_channel = output_channel
-        self._kernel = kernel
         self._activation = activation
-        self._normalize = normalize
-        self._feature_axis = 1
+        self._feature_axis = 1 # feature channel dim
         
-        self.gate_conv = nn.Conv2d(self._input_channel, self._input_channel, self._kernel,padding=1)
-        self.conv2d = nn.Conv2d(self._input_channel, self._output_channel, self._kernel,padding=1)
+        sum_channel = input_channel+output_channel
+        gate_channel = sum_channel//2
+        self.gate_conv = nn.Conv2d(sum_channel, output_channel*2, kernel,padding=1)
+        self.conv2d = nn.Conv2d(sum_channel, output_channel, kernel,padding=1,bias=True)
 
-        self.reset_gate_norm = nn.InstanceNorm2d(self._input_channel,affine=True)
-        self.update_gate_norm = nn.InstanceNorm2d(self._input_channel,affine=True)
+        self.reset_gate_norm = nn.InstanceNorm2d(gate_channel,affine=True)
+        self.update_gate_norm = nn.InstanceNorm2d(gate_channel,affine=True)
 
-        self.output_norm = nn.GroupNorm(1, self._input_channel, 1e-5, True)
+        self.output_norm = nn.GroupNorm(1, input_channel, 1e-5, True)
 
 
     def forward(self,x,h):
