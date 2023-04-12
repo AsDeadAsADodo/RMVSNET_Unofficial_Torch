@@ -28,11 +28,11 @@ class ConvGRUCell(nn.Module):
         #conv_padding = reduce(__add__, 
                               #[(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in self._kernel[::-1]])
         #pad = nn.ZeroPad2d(conv_padding)
-        self.gate_conv = nn.Conv2d(self.input_channel, self.input_channel, self._kernel,padding='same')
-        self.conv2d = nn.Conv2d(self.input_channel, self.output_channel, self._kernel,padding='same')
+        self.gate_conv = nn.Conv2d(self._input_channel, self._input_channel, self._kernel,padding='same')
+        self.conv2d = nn.Conv2d(self._input_channel, self._output_channel, self._kernel,padding='same')
 
-        self.reset_gate_norm = nn.InstanceNorm2d(input_channel_number,affine=True)
-        self.update_gate_norm = nn.InstanceNorm2d(input_channel_number,affine=True)
+        self.reset_gate_norm = nn.InstanceNorm2d(self._input_channel,affine=True)
+        self.update_gate_norm = nn.InstanceNorm2d(self._input_channel,affine=True)
 
         self.output_norm = nn.GroupNorm(1, self._input_channel, 1e-5, True)
 
