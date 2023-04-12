@@ -191,7 +191,7 @@ class MVSNet(nn.Module):
             #return {"depth": depth, "refined_depth": refined_depth, "photometric_confidence": prob_image}
 
 
-def mvsnet_loss(depth_est, depth_gt, mask,depth_value,return_prob_map=False):
+def mvsnet_loss(prob_volume, depth_gt, mask,depth_value,return_prob_map=False):
     # depth_value: B * NUM
     # get depth mask
     mask_true = mask
@@ -211,18 +211,18 @@ def mvsnet_loss(depth_est, depth_gt, mask,depth_value,return_prob_map=False):
     gt_index_volume = torch.zeros(shape[0], depth_num, shape[1], shape[2]).type(mask_true.type()).scatter_(1, gt_index_image, 1)
     # print('shape:', gt_index_volume.shape, )
     # cross entropy image (B x D X H x W)
-    cross_entropy_image = -torch.sum(gt_index_volume * torch.log(depth_est), dim=1).squeeze(1) # B, 1, H, W
+    cross_entropy_image = -torch.sum(gt_index_volume * torch.log(prob_volume), dim=1).squeeze(1) # B, 1, H, W
     #print('cross_entropy_image', cross_entropy_image)
     # masked cross entropy loss
     masked_cross_entropy_image = torch.mul(mask_true, cross_entropy_image) # valid pixel
     masked_cross_entropy = torch.sum(masked_cross_entropy_image, dim=[1, 2])
 
-    masked_cross_entropy = torch.mean(masked_cross_entropy / valid_pixel_num) # Origin use sum : aggregate with batch
+    masked_cross_entropy = torch.sum(masked_cross_entropy / valid_pixel_num) # Origin use sum : aggregate with batch
     # winner-take-all depth map
-    wta_index_map = torch.argmax(depth_est, dim=1, keepdim=True).type(torch.long)
+    wta_index_map = torch.argmax(prob_volume, dim=1, keepdim=True).type(torch.long)
     wta_depth_map = torch.gather(depth_value_mat, 1, wta_index_map).squeeze(1)
 
     if return_prob_map:
-        photometric_confidence = torch.max(depth_est, dim=1)[0] # output shape dimension B * H * W
+        photometric_confidence = torch.max(prob_volume, dim=1)[0] # output shape dimension B * H * W
         return masked_cross_entropy, wta_depth_map, photometric_confidence
     return masked_cross_entropy, wta_depth_map
