@@ -35,7 +35,7 @@ class ConvGRUCell(nn.Module):
         # x shape = (B,D,H,W)
         inputs = Variable(torch.cat((x,h),self._feature_axis))
         gate_conv = self.gate_conv(inputs)
-        reset_gate, update_gate = torch.split(gate_conv, gate_conv.shape[1] // 2, self._feature_axis)
+        reset_gate, update_gate = torch.split(gate_conv, gate_conv.shape[self._feature_axis] // 2, self._feature_axis)
 
         reset_gate = self.reset_gate_norm(reset_gate)
         update_gate = self.reset_gate_norm(update_gate)
