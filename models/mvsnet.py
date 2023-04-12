@@ -140,7 +140,6 @@ class MVSNet(nn.Module):
 
         
         # step 2. 可微单应性变换 + 代价体GRU正则
-        Hs = get_homographies(features, intrinsics, extrinsics, depth_start, depth_interval, number_of_depth_planes)
         
         # N, C, D, H, W = warped.shape
         costs_volume_reg = []
