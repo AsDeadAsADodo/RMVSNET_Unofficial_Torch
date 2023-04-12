@@ -150,9 +150,9 @@ class MVSNet(nn.Module):
         gru1_output_channel = 16
         gru2_output_channel = 4
         gru3_output_channel = 2
-        state1 = torch.zeros(B,gru1_output_channel,H,W)
-        state2 = torch.zeros(B,gru2_output_channel,H,W)
-        state3 = torch.zeros(B,gru3_output_channel,H,W)
+        state1 = torch.zeros((B,gru1_output_channel,H,W),device=ref_feature.device)
+        state2 = torch.zeros((B,gru2_output_channel,H,W),device=ref_feature.device)
+        state3 = torch.zeros((B,gru3_output_channel,H,W),device=ref_feature.device)
 
         convGRUCell1 = ConvGRUCell(input_channel=gru1_input_channel,kernel=[3,3],output_channel=gru1_output_channel).cuda()
         convGRUCell2 = ConvGRUCell(input_channel=gru1_output_channel,kernel=[3,3],output_channel=gru2_output_channel).cuda()
