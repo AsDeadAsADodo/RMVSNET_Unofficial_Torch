@@ -154,11 +154,9 @@ class MVSNet(nn.Module):
         state2 = torch.zeros(B,gru2_output_channel,H,W)
         state3 = torch.zeros(B,gru3_output_channel,H,W)
 
-        convGRUCell1 = ConvGRUCell(input_channel=gru1_input_channel,kernel=[3,3],output_channel=gru1_output_channel)
-        convGRUCell2 = ConvGRUCell(input_channel=gru1_output_channel,kernel=[3,3],output_channel=gru2_output_channel)
-        convGRUCell3 = ConvGRUCell(input_channel=gru2_output_channel,kernel=[3,3],output_channel=gru3_output_channel)
-        
-        
+        convGRUCell1 = ConvGRUCell(input_channel=gru1_input_channel,kernel=[3,3],output_channel=gru1_output_channel).cuda()
+        convGRUCell2 = ConvGRUCell(input_channel=gru1_output_channel,kernel=[3,3],output_channel=gru2_output_channel).cuda()
+        convGRUCell3 = ConvGRUCell(input_channel=gru2_output_channel,kernel=[3,3],output_channel=gru3_output_channel).cuda()
             
         for d in range(num_depth):
             # 参考图像特征图
