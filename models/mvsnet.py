@@ -131,7 +131,7 @@ class MVSNet(nn.Module):
 
         assert len(imgs) == len(proj_matrices)
 
-        num_depth = len(depth_values)
+        num_depth = depth_values.shape[1]
         # step 1. feature extraction
         # in: images; out: 32-channel feature maps
         features = [self.feature(img) for img in imgs]
@@ -160,7 +160,7 @@ class MVSNet(nn.Module):
         
         
             
-        for d in range(number_of_depth_planes):
+        for d in range(num_depth):
             # 参考图像特征图
             ref_volume = ref_feature
             warped_volume = None
