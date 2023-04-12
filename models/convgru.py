@@ -22,14 +22,8 @@ class ConvGRUCell(nn.Module):
         self._normalize = normalize
         self._feature_axis = 1
         
-        # Internal parameters used to reproduce Tensorflow "Same" padding.
-        # For some reasons, padding dimensions are reversed wrt kernel sizes,
-        # first comes width then height in the 2D case.
-        #conv_padding = reduce(__add__, 
-                              #[(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in self._kernel[::-1]])
-        #pad = nn.ZeroPad2d(conv_padding)
-        self.gate_conv = nn.Conv2d(self._input_channel, self._input_channel, self._kernel,padding='same')
-        self.conv2d = nn.Conv2d(self._input_channel, self._output_channel, self._kernel,padding='same')
+        self.gate_conv = nn.Conv2d(self._input_channel, self._input_channel, self._kernel,padding=1)
+        self.conv2d = nn.Conv2d(self._input_channel, self._output_channel, self._kernel,padding=1)
 
         self.reset_gate_norm = nn.InstanceNorm2d(self._input_channel,affine=True)
         self.update_gate_norm = nn.InstanceNorm2d(self._input_channel,affine=True)
