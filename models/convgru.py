@@ -19,7 +19,7 @@ class ConvGRUCell(nn.Module):
         self._feature_axis = 1 # feature channel dim
         
         sum_channel = input_channel+output_channel
-        self.gate_conv = nn.Conv2d(sum_channel, output_channel*2, kernel,padding=1)
+        self.gate_conv = nn.Conv2d(sum_channel, output_channel*2, kernel,padding=1,bias=True)
         self.conv2d = nn.Conv2d(sum_channel, output_channel, kernel,padding=1,bias=True)
 
         self.reset_gate_norm = nn.InstanceNorm2d(output_channel,affine=True)
@@ -35,10 +35,10 @@ class ConvGRUCell(nn.Module):
         reset_gate, update_gate = torch.split(gate_conv, gate_conv.shape[self._feature_axis] // 2, self._feature_axis)
 
         reset_gate = self.reset_gate_norm(reset_gate)
-        update_gate = self.reset_gate_norm(update_gate)
+        update_gate = self.update_gate(update_gate)
 
         reset_gate = torch.sigmoid(reset_gate)
-        reset_gate = torch.sigmoid(update_gate)
+        update_gate = torch.sigmoid(update_gate)
 
         inputs = Variable(torch.cat((x,reset_gate * h),self._feature_axis))
 
@@ -49,6 +49,7 @@ class ConvGRUCell(nn.Module):
 
         output = update_gate * h + (1-update_gate) * y
 
-        return Variable(output),Variable(output)
+        return output,output
+        #return Variable(output),Variable(output)
 
 
