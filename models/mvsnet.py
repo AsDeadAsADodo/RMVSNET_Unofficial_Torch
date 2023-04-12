@@ -163,10 +163,14 @@ class MVSNet(nn.Module):
         for d in range(num_depth):
             # 参考图像特征图
             ref_volume = ref_feature
-            warped_volume = None
+            warped_volumes = None
             for src_fea,src_proj in zip(src_features,src_projs):
                 warped_volume = homo_warping_depthwise(src_fea, src_proj, ref_proj, depth_values[:, d])
                 warped_volume = (warped_volume - ref_volume).pow_(2)
+                if warped_volumes is None:
+                    warped_volumes = warped_volume
+                else:
+                    warped_volumes = warped_volumes + warped_volume
             volume_variance = warped_volumes / len(src_features)
             cost_map_reg1,state1 = convGRUCell1(-volume_variance,state1)
             cost_map_reg2,state2 = convGRUCell2(cost_map_reg1,state2)
