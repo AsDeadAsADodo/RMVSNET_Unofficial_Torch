@@ -185,7 +185,7 @@ def train_sample(sample, detailed_summary=False):
     depth_gt = sample_cuda["depth"]
     mask = sample_cuda["mask"]
 
-    outputs = model(sample_cuda["imgs"], sample_cuda["intrinsics"], sample_cuda["extrinsics"],sample_cuda["depth_planes"])
+    outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_value"])
     prob_volume = outputs["prob_volume"]
 
     loss,depth_est = model_loss(prob_volume, depth_gt, mask,sample_cuda["depth_values"])
@@ -214,7 +214,7 @@ def test_sample(sample, detailed_summary=True):
     depth_gt = sample_cuda["depth"]
     mask = sample_cuda["mask"]
 
-    outputs = model(sample_cuda["imgs"], sample_cuda["intrinsics"], sample_cuda["extrinsics"],sample_cuda["depth_planes"])
+    outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_value"])
 
     loss,depth_est,photometric_confidence = model_loss(prob_volume, depth_gt, mask,sample_cuda["depth_values"])
     prob_volume = outputs["prob_volume"]
