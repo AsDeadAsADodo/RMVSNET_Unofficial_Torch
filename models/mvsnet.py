@@ -125,7 +125,7 @@ class MVSNet(nn.Module):
             self.refine_network = RefineNet()
             
 
-    def forward(self, imgs, proj_matrices,depth_value):
+    def forward(self, imgs, proj_matrices,depth_values):
         imgs = torch.unbind(imgs, 1)
         proj_matrices = torch.unbind(proj_matrices,1)
 

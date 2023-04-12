@@ -117,7 +117,7 @@ def train():
 
     for epoch_idx in range(start_epoch, args.epochs):
         print('Epoch {}:'.format(epoch_idx))
-        lr_scheduler.step()
+        
         global_step = len(TrainImgLoader) * epoch_idx
 
         # training
@@ -134,7 +134,7 @@ def train():
                 'Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs, batch_idx,
                                                                                      len(TrainImgLoader), loss,
                                                                                      time.time() - start_time))
-
+        lr_scheduler.step()
         # checkpoint
         if (epoch_idx + 1) % args.save_freq == 0:
             torch.save({
@@ -185,7 +185,7 @@ def train_sample(sample, detailed_summary=False):
     depth_gt = sample_cuda["depth"]
     mask = sample_cuda["mask"]
 
-    outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_value"])
+    outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_values"])
     prob_volume = outputs["prob_volume"]
 
     loss,depth_est = model_loss(prob_volume, depth_gt, mask,sample_cuda["depth_values"])
@@ -214,7 +214,7 @@ def test_sample(sample, detailed_summary=True):
     depth_gt = sample_cuda["depth"]
     mask = sample_cuda["mask"]
 
-    outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_value"])
+    outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_values"])
 
     loss,depth_est,photometric_confidence = model_loss(prob_volume, depth_gt, mask,sample_cuda["depth_values"])
     prob_volume = outputs["prob_volume"]
