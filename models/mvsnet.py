@@ -144,7 +144,9 @@ class MVSNet(nn.Module):
         # N, C, D, H, W = warped.shape
         costs_volume_reg = []
 
-        gru1_input_channel = 32
+        B,C,H,W = ref_feature.shape
+
+        gru1_input_channel = C
         gru1_output_channel = 16
         gru2_output_channel = 4
         gru3_output_channel = 2
