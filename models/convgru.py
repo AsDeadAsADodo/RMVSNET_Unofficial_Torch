@@ -3,9 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from functools import reduce
-from operator import __add__
-
 class ConvGRUCell(nn.Module):
 
     def __init__(self, 
@@ -30,7 +27,7 @@ class ConvGRUCell(nn.Module):
 
     def forward(self,x,h):
         # x shape = (B,D,H,W)
-        inputs = Variable(torch.cat((x,h),self._feature_axis))
+        inputs = torch.cat((x,h),self._feature_axis)
         gate_conv = self.gate_conv(inputs)
         reset_gate, update_gate = torch.split(gate_conv, gate_conv.shape[self._feature_axis] // 2, self._feature_axis)
 
@@ -40,7 +37,7 @@ class ConvGRUCell(nn.Module):
         reset_gate = torch.sigmoid(reset_gate)
         update_gate = torch.sigmoid(update_gate)
 
-        inputs = Variable(torch.cat((x,reset_gate * h),self._feature_axis))
+        inputs = torch.cat((x,reset_gate * h),self._feature_axis)
 
         conv = self.conv2d(inputs)
         conv = self.output_norm(conv)

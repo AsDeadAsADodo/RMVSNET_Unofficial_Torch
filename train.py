@@ -111,9 +111,9 @@ print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in mo
 # main function
 def train():
     milestones = [int(epoch_idx) for epoch_idx in args.lrepochs.split(':')[0].split(',')]
-    lr_gamma = 1 / float(args.lrepochs.split(':')[1])
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones, gamma=lr_gamma,
-                                                        last_epoch=start_epoch - 1)
+    lr_gamma = 0.9 #1 / float(args.lrepochs.split(':')[1])
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_gamma,
+                                                          last_epoch=start_epoch - 1)
 
     for epoch_idx in range(start_epoch, args.epochs):
         print('Epoch {}:'.format(epoch_idx))
@@ -215,9 +215,9 @@ def test_sample(sample, detailed_summary=True):
     mask = sample_cuda["mask"]
 
     outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_values"])
+    prob_volume = outputs["prob_volume"]
 
     loss,depth_est,photometric_confidence = model_loss(prob_volume, depth_gt, mask,sample_cuda["depth_values"],return_prob_map=True)
-    prob_volume = outputs["prob_volume"]
     scalar_outputs = {"loss": loss}
     image_outputs = {"depth_est": depth_est * mask,
                      "photometric_confidence": photometric_confidence * mask, 
