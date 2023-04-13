@@ -119,7 +119,8 @@ def train():
         print('Epoch {}:'.format(epoch_idx))
         
         global_step = len(TrainImgLoader) * epoch_idx
-
+        lr_scheduler.step()
+        
         # training
         for batch_idx, sample in enumerate(TrainImgLoader):
             start_time = time.time()
@@ -134,7 +135,7 @@ def train():
                 'Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs, batch_idx,
                                                                                      len(TrainImgLoader), loss,
                                                                                      time.time() - start_time))
-        lr_scheduler.step()
+        
         # checkpoint
         if (epoch_idx + 1) % args.save_freq == 0:
             torch.save({
