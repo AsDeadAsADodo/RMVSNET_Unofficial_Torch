@@ -164,7 +164,7 @@ class MVSNet(nn.Module):
             ave_feature = ref_feature
             ave_feature2 = ref_feature**2
             for view in range(1,num_view):
-                warped_src_feature = homo_warping(src_features[view],src_projs[view],ref_proj,depth_value[:,d])
+                warped_src_feature = homo_warping(src_features[view],src_projs[view],ref_proj,depth_values[:,d])
                 ave_feature = ave_feature + warped_src_feature
                 ave_feature2 = ave_feature2 + warped_src_feature**2
             ave_feature = ave_feature/num_view
