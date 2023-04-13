@@ -52,6 +52,5 @@ class ConvGRUCell(nn.Module):
         #output = Variable(update_gate * h + (1-update_gate) * y)
 
         return output,output
-        #return Variable(output),Variable(output)
 
 
