@@ -141,7 +141,8 @@ class MVSNet(nn.Module):
         num_view = len(src_features)+1
 
         
-        # step 2. 可微单应性变换 + 代价体GRU正则
+        # step 2. homography + conv gru 
+        # cost regularization
         
         # N, C, D, H, W = warped.shape
         costs_volume_reg = []
@@ -161,7 +162,7 @@ class MVSNet(nn.Module):
         convGRUCell3 = ConvGRUCell(input_channel=gru2_output_channel,kernel=[3,3],output_channel=gru3_output_channel).cuda()
             
         for d in range(num_depth):
-            # 参考图像特征图
+            # build cost map
             ave_feature = ref_feature
             ave_feature2 = ref_feature**2
             for view in range(0,len(src_features)):
