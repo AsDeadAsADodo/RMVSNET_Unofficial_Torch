@@ -144,7 +144,6 @@ class MVSNet(nn.Module):
         # step 2. homography + conv gru 
         # cost regularization
         
-        # N, C, D, H, W = warped.shape
         costs_volume_reg = []
 
         B,C,H,W = ref_feature.shape
