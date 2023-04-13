@@ -30,7 +30,7 @@ class FeatureNet(nn.Module):
         x = self.conv4(self.conv3(self.conv2(x)))
         x = self.feature(self.conv6(self.conv5(x)))
         return x
-        
+'''      
 class CostConvGRURegNet(nn.Module):
     def __init__(self):
         super(CostConvGRURegNet, self).__init__()
@@ -53,6 +53,7 @@ class CostConvGRURegNet(nn.Module):
         cost_2 = self.gru2(cost_1,h2)
         cost_3 = self.gru3(cost_2,h3)
         return self.prob(cost_3)
+'''
     
 
 class CostRegNet(nn.Module):
