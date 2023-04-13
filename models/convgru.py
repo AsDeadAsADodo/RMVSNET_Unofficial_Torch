@@ -49,6 +49,7 @@ class ConvGRUCell(nn.Module):
         y = self._activation(conv)
 
         output = update_gate * h + (1-update_gate) * y
+        #output = Variable(update_gate * h + (1-update_gate) * y)
 
         return output,output
         #return Variable(output),Variable(output)
