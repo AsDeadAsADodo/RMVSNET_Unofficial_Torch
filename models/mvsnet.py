@@ -137,6 +137,7 @@ class MVSNet(nn.Module):
         features = [self.feature(img) for img in imgs]
         ref_feature,src_features = features[0],features[1:]
         ref_proj,src_projs = proj_matrices[0],proj_matrices[1:]
+        num_view = len(src_features)+1
 
         
         # step 2. 可微单应性变换 + 代价体GRU正则
@@ -160,17 +161,17 @@ class MVSNet(nn.Module):
             
         for d in range(num_depth):
             # 参考图像特征图
-            ref_volume = ref_feature
-            warped_volumes = None
-            for src_fea,src_proj in zip(src_features,src_projs):
-                warped_volume = homo_warping_depthwise(src_fea, src_proj, ref_proj, depth_values[:, d])
-                warped_volume = (warped_volume - ref_volume).pow_(2)
-                if warped_volumes is None:
-                    warped_volumes = warped_volume
-                else:
-                    warped_volumes = warped_volumes + warped_volume
-            volume_variance = warped_volumes / len(src_features)
-            cost_map_reg1,state1 = convGRUCell1(-volume_variance,state1)
+            ave_feature = ref_feature
+            ave_feature2 = ref_feature**2
+            for view in range(1,num_view):
+                warped_src_feature = homo_warping(src_features[view],src_projs[view],ref_proj,depth_value[:,d])
+                ave_feature = ave_feature + warped_src_feature
+                ave_feature2 = ave_feature2 + warped_src_feature**2
+            ave_feature = ave_feature/num_view
+            ave_feature2 = ave_feature2/num_view
+            cost_map = ave_feature2 - ave_feature**2
+
+            cost_map_reg1,state1 = convGRUCell1(-cost_map,state1)
             cost_map_reg2,state2 = convGRUCell2(cost_map_reg1,state2)
             cost_map_reg3,state3 = convGRUCell3(cost_map_reg2,state3)
             cost_map_reg = self.conv2d(cost_map_reg3)
