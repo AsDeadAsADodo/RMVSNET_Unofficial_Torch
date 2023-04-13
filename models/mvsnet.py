@@ -163,13 +163,13 @@ class MVSNet(nn.Module):
             # 参考图像特征图
             ave_feature = ref_feature
             ave_feature2 = ref_feature**2
-            for view in range(1,num_view):
+            for view in range(0,len(src_features)):
                 warped_src_feature = homo_warping(src_features[view],src_projs[view],ref_proj,depth_values[:,d])
                 ave_feature = ave_feature + warped_src_feature
-                ave_feature2 = ave_feature2 + warped_src_feature**2
+                ave_feature2 = ave_feature2 + torch.square(warped_src_feature)
             ave_feature = ave_feature/num_view
             ave_feature2 = ave_feature2/num_view
-            cost_map = ave_feature2 - ave_feature**2
+            cost_map = ave_feature2 - torch.square(ave_feature)
 
             cost_map_reg1,state1 = convGRUCell1(-cost_map,state1)
             cost_map_reg2,state2 = convGRUCell2(cost_map_reg1,state2)

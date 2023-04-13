@@ -22,7 +22,8 @@ class ConvGRUCell(nn.Module):
         self.reset_gate_norm = nn.InstanceNorm2d(output_channel,affine=True)
         self.update_gate_norm = nn.InstanceNorm2d(output_channel,affine=True)
 
-        self.output_norm = nn.GroupNorm(1, output_channel, 1e-5, True)
+        G = int(max(1,output_channel/8))
+        self.output_norm = nn.GroupNorm(G, output_channel, 1e-5, True)
 
 
     def forward(self,x,h):
