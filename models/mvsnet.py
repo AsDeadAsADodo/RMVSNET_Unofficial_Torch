@@ -39,17 +39,20 @@ class CostConvGRURegNet(nn.Module):
         gru1_output_channel = 16
         gru2_output_channel = 4
         gru3_output_channel = 2
-        self.convGRUCell1 = ConvGRUCell(input_channel=gru1_input_channel,kernel=[3,3],output_channel=gru1_output_channel).cuda()
-        self.convGRUCell2 = ConvGRUCell(input_channel=gru1_output_channel,kernel=[3,3],output_channel=gru2_output_channel).cuda()
-        self.convGRUCell3 = ConvGRUCell(input_channel=gru2_output_channel,kernel=[3,3],output_channel=gru3_output_channel).cuda()
-        self.conv2d = nn.Conv2d(2, 1, (3,3),padding=1)
+        self.convGRUCell1 = ConvGRUCell(input_channel=gru1_input_channel,kernel=[3,3],output_channel=gru1_output_channel)
+        self.convGRUCell2 = ConvGRUCell(input_channel=gru1_output_channel,kernel=[3,3],output_channel=gru2_output_channel)
+        self.convGRUCell3 = ConvGRUCell(input_channel=gru2_output_channel,kernel=[3,3],output_channel=gru3_output_channel)
+        #self.conv2d = nn.Conv2d(2, 1, (3,3),padding=1)
         self.prob = nn.Conv2d(2, 1, 3, 1, 1)
         
-    def forward(self,x,h):
-        
-        cost_1,h1 = self.convGRUCell1(x,h)
-        cost_2,h2 = self.convGRUCell2(cost_1,h1)
-        cost_3,h3 = self.convGRUCell3(cost_2,h2)
+    def forward(self,x):
+        B,C,H,W = x.shape
+        state1 = Variable(torch.zeros((B,16,H,W), dtype=torch.float,device=x.device))
+        state2 = Variable(torch.zeros((B,4,H,W), dtype=torch.float,device=x.device))
+        state3 = Variable(torch.zeros((B,2,H,W), dtype=torch.float,device=x.device))
+        cost_1,h1 = self.convGRUCell1(x,state1)
+        cost_2,h2 = self.convGRUCell2(cost_1,state2)
+        cost_3,h3 = self.convGRUCell3(cost_2,state3)
         return self.prob(cost_3)
 
     
@@ -117,7 +120,7 @@ class MVSNet(nn.Module):
         super(MVSNet, self).__init__()
         self.refine = refine
         self.feature = FeatureNet()
-        #self.cost_regularization = CostConvGRURegNet()
+        self.cost_regularization = CostConvGRURegNet()
         
         if self.refine:
             self.refine_network = RefineNet()
@@ -147,7 +150,7 @@ class MVSNet(nn.Module):
 
         gru1_input_channel = C
         gru1_output_channel = 16
-        state1 = Variable(torch.zeros((B,gru1_output_channel,H,W), dtype=torch.float,device=ref_feature.device))
+        
             
         for d in range(num_depth):
             # build cost map
@@ -161,7 +164,7 @@ class MVSNet(nn.Module):
             ave_feature2 = ave_feature2/num_view
             cost_map = ave_feature2 - torch.square(ave_feature)
 
-            cost_map_reg,_ = self.cost_regularization(-cost_map,state1)
+            cost_map_reg = self.cost_regularization(-cost_map)
             costs_volume_reg.append(cost_map_reg)
             
         prob_volume = torch.cat(costs_volume_reg, 1).squeeze(2)
