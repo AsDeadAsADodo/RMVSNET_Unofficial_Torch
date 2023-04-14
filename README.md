@@ -8,6 +8,8 @@ Only implement forward cost regularization
 
 If uncomment convgru.py variable code , could run roughly 32 batch on a 16GB GPU 
 
+### Update 2023/4/14 training loss go down
+
 ## Description
 Unofficial RMVSNET implementation .
 
