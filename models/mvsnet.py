@@ -117,7 +117,7 @@ class MVSNet(nn.Module):
         super(MVSNet, self).__init__()
         self.refine = refine
         self.feature = FeatureNet()
-        self.cost_regularization = CostConvGRURegNet()
+        #self.cost_regularization = CostConvGRURegNet()
         
         if self.refine:
             self.refine_network = RefineNet()
