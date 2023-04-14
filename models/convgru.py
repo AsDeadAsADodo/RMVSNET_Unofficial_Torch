@@ -29,8 +29,8 @@ class ConvGRUCell(nn.Module):
 
     def forward(self,x,h):
         # x shape = (B,D,H,W)
+        
         inputs = torch.cat((x,h),self._feature_axis)
-        #inputs = Variable(torch.cat((x,h),self._feature_axis))
         gate_conv = self.gate_conv(inputs)
         reset_gate, update_gate = torch.split(gate_conv, gate_conv.shape[self._feature_axis] // 2, self._feature_axis)
 
@@ -41,7 +41,6 @@ class ConvGRUCell(nn.Module):
         update_gate = torch.sigmoid(update_gate)
 
         inputs = torch.cat((x,reset_gate * h),self._feature_axis)
-        #inputs = Variable(torch.cat((x,reset_gate * h),self._feature_axis))
 
         conv = self.conv2d(inputs)
         conv = self.output_norm(conv)
@@ -49,7 +48,6 @@ class ConvGRUCell(nn.Module):
         y = self._activation(conv)
 
         output = update_gate * h + (1-update_gate) * y
-        #output = Variable(update_gate * h + (1-update_gate) * y)
 
         return output,output
 
