@@ -92,7 +92,6 @@ class Hourglass3d(nn.Module):
         dconv1 = F.relu(self.dconv1(dconv2) + self.redir1(x), inplace=True)
         return dconv1
 
-
 def homo_warping(src_fea, src_proj, ref_proj, depth_values):
     # src_fea: [B, C, H, W]
     # src_proj: [B, 4, 4]
@@ -100,7 +99,7 @@ def homo_warping(src_fea, src_proj, ref_proj, depth_values):
     # depth_values: [B, Ndepth]
     # out: [B, C, Ndepth, H, W]
     batch, channels = src_fea.shape[0], src_fea.shape[1]
-    num_depth = depth_values.shape[1]
+    num_depth = 1
     height, width = src_fea.shape[2], src_fea.shape[3]
 
     with torch.no_grad():
@@ -115,8 +114,9 @@ def homo_warping(src_fea, src_proj, ref_proj, depth_values):
         xyz = torch.stack((x, y, torch.ones_like(x)))  # [3, H*W]
         xyz = torch.unsqueeze(xyz, 0).repeat(batch, 1, 1)  # [B, 3, H*W]
         rot_xyz = torch.matmul(rot, xyz)  # [B, 3, H*W]
-        rot_depth_xyz = rot_xyz.unsqueeze(2).repeat(1, 1, num_depth, 1) * depth_values.view(batch, 1, num_depth,
-                                                                                            1)  # [B, 3, Ndepth, H*W]
+        rot_depth_xyz = rot_xyz.unsqueeze(2).\
+                                repeat(1, 1, num_depth, 1) * depth_values.\
+                                view(batch, 1, num_depth,1)  # [B, 3, Ndepth, H*W]
         proj_xyz = rot_depth_xyz + trans.view(batch, 3, 1, 1)  # [B, 3, Ndepth, H*W]
         proj_xy = proj_xyz[:, :2, :, :] / proj_xyz[:, 2:3, :, :]  # [B, 2, Ndepth, H*W]
         proj_x_normalized = proj_xy[:, 0, :, :] / ((width - 1) / 2) - 1
@@ -128,7 +128,7 @@ def homo_warping(src_fea, src_proj, ref_proj, depth_values):
                                    padding_mode='zeros')
     warped_src_fea = warped_src_fea.view(batch, channels, num_depth, height, width)
 
-    return warped_src_fea
+    return warped_src_fea.squeeze(2)
 
 
 # p: probability volume [B, D, H, W]

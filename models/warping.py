@@ -37,7 +37,7 @@ def get_homographies(features, intrinsics, extrinsics,  min_dist, interval, num_
     # K = Nx1x3x3
     # R = Nx1x3x3
     # t = Nx1x3x1
-	print(num_planes)
+    #print(num_planes)
     depths = torch.arange(num_planes).float() * interval + min_dist
     depths = depths.to(features.device)
     src_Ks = intrinsics / 4

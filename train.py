@@ -111,15 +111,16 @@ print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in mo
 # main function
 def train():
     milestones = [int(epoch_idx) for epoch_idx in args.lrepochs.split(':')[0].split(',')]
-    lr_gamma = 1 / float(args.lrepochs.split(':')[1])
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones, gamma=lr_gamma,
-                                                        last_epoch=start_epoch - 1)
+    lr_gamma = 0.9 #1 / float(args.lrepochs.split(':')[1])
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_gamma,
+                                                          last_epoch=start_epoch - 1)
 
     for epoch_idx in range(start_epoch, args.epochs):
         print('Epoch {}:'.format(epoch_idx))
-        lr_scheduler.step()
+        
         global_step = len(TrainImgLoader) * epoch_idx
-
+        lr_scheduler.step()
+        
         # training
         for batch_idx, sample in enumerate(TrainImgLoader):
             start_time = time.time()
@@ -134,7 +135,7 @@ def train():
                 'Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, args.epochs, batch_idx,
                                                                                      len(TrainImgLoader), loss,
                                                                                      time.time() - start_time))
-
+        
         # checkpoint
         if (epoch_idx + 1) % args.save_freq == 0:
             torch.save({
@@ -185,7 +186,7 @@ def train_sample(sample, detailed_summary=False):
     depth_gt = sample_cuda["depth"]
     mask = sample_cuda["mask"]
 
-    outputs = model(sample_cuda["imgs"], sample_cuda["intrinsics"], sample_cuda["extrinsics"],sample_cuda["depth_planes"])
+    outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_values"])
     prob_volume = outputs["prob_volume"]
 
     loss,depth_est = model_loss(prob_volume, depth_gt, mask,sample_cuda["depth_values"])
@@ -214,10 +215,11 @@ def test_sample(sample, detailed_summary=True):
     depth_gt = sample_cuda["depth"]
     mask = sample_cuda["mask"]
 
-    outputs = model(sample_cuda["imgs"], sample_cuda["intrinsics"], sample_cuda["extrinsics"],sample_cuda["depth_planes"])
+    outputs = model(sample_cuda["imgs"], sample_cuda["proj_matrices"], sample_cuda["depth_values"])
+    prob_volume = outputs["prob_volume"]
 
     loss,depth_est,photometric_confidence = model_loss(prob_volume, depth_gt, mask,sample_cuda["depth_values"],return_prob_map=True)
-	prob_volume = outputs["prob_volume"]
+
     scalar_outputs = {"loss": loss}
     image_outputs = {"depth_est": depth_est * mask,
                      "photometric_confidence": photometric_confidence * mask, 

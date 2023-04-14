@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
+
 from .module import *
 from .warping import get_homographies, warp_homographies
 from .gru import GRU
+from .convgru import ConvGRUCell
 
 
 class FeatureNet(nn.Module):
@@ -27,28 +30,28 @@ class FeatureNet(nn.Module):
         x = self.conv4(self.conv3(self.conv2(x)))
         x = self.feature(self.conv6(self.conv5(x)))
         return x
-        
+
 class CostConvGRURegNet(nn.Module):
     def __init__(self):
         super(CostConvGRURegNet, self).__init__()
         # 输入通道数为硬编码 32通道为特征图输出通道数
-        gru_input_size = 32
-        gru1_output_size = 16
-        gru2_output_size = 4
-        gru3_output_size = 2
-        self.cost_1 = None
-        self.cost_2 = None
-        self.cost_3 = None
-        self.gru1 = GRU(gru_input_size, gru1_output_size, 3)
-        self.gru2 = GRU(gru1_output_size, gru2_output_size, 3)
-        self.gru3 = GRU(gru2_output_size, gru3_output_size, 3)
+        gru1_input_channel = 32
+        gru1_output_channel = 16
+        gru2_output_channel = 4
+        gru3_output_channel = 2
+        self.convGRUCell1 = ConvGRUCell(input_channel=gru1_input_channel,kernel=[3,3],output_channel=gru1_output_channel).cuda()
+        self.convGRUCell2 = ConvGRUCell(input_channel=gru1_output_channel,kernel=[3,3],output_channel=gru2_output_channel).cuda()
+        self.convGRUCell3 = ConvGRUCell(input_channel=gru2_output_channel,kernel=[3,3],output_channel=gru3_output_channel).cuda()
+        self.conv2d = nn.Conv2d(2, 1, (3,3),padding=1)
         self.prob = nn.Conv2d(2, 1, 3, 1, 1)
         
-    def forward(self,x):
-        self.cost_1 = self.gru1(x,self.cost_1)
-        self.cost_2 = self.gru2(self.cost_1,self.cost_2)
-        self.cost_3 = self.gru3(self.cost_2,self.cost_3)
-        return self.prob(self.cost_3)
+    def forward(self,x,h):
+        
+        cost_1,h1 = self.convGRUCell1(x,h)
+        cost_2,h2 = self.convGRUCell2(cost_1,h1)
+        cost_3,h3 = self.convGRUCell3(cost_2,h2)
+        return self.prob(cost_3)
+
     
 
 class CostRegNet(nn.Module):
@@ -114,81 +117,59 @@ class MVSNet(nn.Module):
         super(MVSNet, self).__init__()
         self.refine = refine
         self.feature = FeatureNet()
-        self.cost_regularization = CostConvGRURegNet()
+        #self.cost_regularization = CostConvGRURegNet()
         
         if self.refine:
             self.refine_network = RefineNet()
             
-    def compute_cost_volume(self, warped):
-        '''
-        构建方差代价体
-        Warped: N x C x M x H x W
-    
-        returns: 1 x C x M x H x W
-        '''
-        warped_sq = warped ** 2
-        av_warped = warped.mean(0)
-        av_warped_sq = warped_sq.mean(0)
-        cost = av_warped_sq - (av_warped ** 2)
-    
-        return cost.unsqueeze(0)
-        
-    def compute_depth(self, prob_volume, depth_start, depth_interval, depth_num):
-        '''
-        计算深度图？需要确定
-        prob_volume: 1 x D x H x W
-        '''
-        _, M, H, W = prob_volume.shape
-        # prob_indices = HW shaped vector
-        probs, indices = prob_volume.max(1)
-        depth_range = depth_start + torch.arange(depth_num).float() * depth_interval
-        depth_range = depth_range.to(prob_volume.device)
-        depths = torch.index_select(depth_range, 0, indices.flatten())
-        depth_image = depths.view(H, W)
-        prob_image = probs.view(H, W)
-    
-        return depth_image, prob_image
 
-    def forward(self, imgs, intrinsics, extrinsics,depth_planes):
+    def forward(self, imgs, proj_matrices,depth_values):
         imgs = torch.unbind(imgs, 1)
+        proj_matrices = torch.unbind(proj_matrices,1)
+
+        assert len(imgs) == len(proj_matrices)
+
+        num_depth = depth_values.shape[1]
         # step 1. feature extraction
         # in: images; out: 32-channel feature maps
         features = [self.feature(img) for img in imgs]
-        features = torch.tensor([item.cpu().detach().numpy() for item in features]).cuda().squeeze()
-        intrinsics = torch.tensor([item.cpu().detach().numpy() for item in intrinsics]).cuda().squeeze()
-        extrinsics = torch.tensor([item.cpu().detach().numpy() for item in extrinsics]).cuda().squeeze()
+        ref_feature,src_features = features[0],features[1:]
+        ref_proj,src_projs = proj_matrices[0],proj_matrices[1:]
+        num_view = len(src_features)+1
+
         
-        # step 2. 可微单应性变换 + 代价体GRU正则
-        # 以下三个属性为硬编码读取，如果数据集内深度平面信息不同，需要修改
-        number_of_depth_planes = depth_planes["number"].item()
-        depth_interval = depth_planes["depth_interval"].item()
-        depth_start = depth_planes["depth_start"].item()
-        Hs = get_homographies(features, intrinsics, extrinsics, depth_start, depth_interval, number_of_depth_planes)
+        # step 2. homography + conv gru 
+        # cost regularization
         
-        # N, C, D, H, W = warped.shape
-        depth_costs = []
-        
-        for d in range(number_of_depth_planes):
-            # 参考图像特征图
-            ref_f = features[:1]
+        costs_volume_reg = []
+
+        B,C,H,W = ref_feature.shape
+
+        gru1_input_channel = C
+        gru1_output_channel = 16
+        state1 = Variable(torch.zeros((B,gru1_output_channel,H,W), dtype=torch.float,device=ref_feature.device))
             
-            # 单应变换到参考图像虚拟平面的特征
-            warped = warp_homographies(features[1:], Hs[1:, d])
-            all_f = torch.cat((ref_f, warped), 0)
-        
-            # cost_d = 1 x C x H x W
-            cost_d =  self.compute_cost_volume(all_f)
-            reg_cost = self.cost_regularization(-cost_d)
-        
-            depth_costs.append(reg_cost)
+        for d in range(num_depth):
+            # build cost map
+            ave_feature = ref_feature
+            ave_feature2 = ref_feature**2
+            for view in range(0,len(src_features)):
+                warped_src_feature = homo_warping(src_features[view],src_projs[view],ref_proj,depth_values[:,d])
+                ave_feature = ave_feature + warped_src_feature
+                ave_feature2 = ave_feature2 + torch.square(warped_src_feature)
+            ave_feature = ave_feature/num_view
+            ave_feature2 = ave_feature2/num_view
+            cost_map = ave_feature2 - torch.square(ave_feature)
+
+            cost_map_reg,_ = self.cost_regularization(-cost_map,state1)
+            costs_volume_reg.append(cost_map_reg)
             
-        prob_volume = torch.cat(depth_costs, 1)
-        # softmax prob_volume
+        prob_volume = torch.cat(costs_volume_reg, 1).squeeze(2)
+        #print(prob_volume.shape)
         softmax_probs = torch.softmax(prob_volume, 1)
-        
-        depth, prob_image = self.compute_depth(softmax_probs, depth_start, depth_interval, number_of_depth_planes)
-		
-		return {'prob_volume': softmax_probs}
+
+        return {'prob_volume': softmax_probs}
+
         
         # step 4. depth map refinement
         #if not self.refine:
@@ -198,10 +179,10 @@ class MVSNet(nn.Module):
             #return {"depth": depth, "refined_depth": refined_depth, "photometric_confidence": prob_image}
 
 
-def mvsnet_loss(depth_est, depth_gt, mask,depth_value,return_prob_map=False):
+def mvsnet_loss(prob_volume, depth_gt, mask,depth_value,return_prob_map=False):
     # depth_value: B * NUM
     # get depth mask
-    mask_true = mask > 0.5
+    mask_true = mask
     valid_pixel_num = torch.sum(mask_true, dim=[1,2]) + 1e-6
 
     shape = depth_gt.shape
@@ -218,18 +199,18 @@ def mvsnet_loss(depth_est, depth_gt, mask,depth_value,return_prob_map=False):
     gt_index_volume = torch.zeros(shape[0], depth_num, shape[1], shape[2]).type(mask_true.type()).scatter_(1, gt_index_image, 1)
     # print('shape:', gt_index_volume.shape, )
     # cross entropy image (B x D X H x W)
-    cross_entropy_image = -torch.sum(gt_index_volume * torch.log(depth_est), dim=1).squeeze(1) # B, 1, H, W
+    cross_entropy_image = -torch.sum(gt_index_volume * torch.log(prob_volume), dim=1).squeeze(1) # B, 1, H, W
     #print('cross_entropy_image', cross_entropy_image)
     # masked cross entropy loss
     masked_cross_entropy_image = torch.mul(mask_true, cross_entropy_image) # valid pixel
     masked_cross_entropy = torch.sum(masked_cross_entropy_image, dim=[1, 2])
 
-    masked_cross_entropy = torch.mean(masked_cross_entropy / valid_pixel_num) # Origin use sum : aggregate with batch
+    masked_cross_entropy = torch.sum(masked_cross_entropy / valid_pixel_num) # Origin use sum : aggregate with batch
     # winner-take-all depth map
-    wta_index_map = torch.argmax(depth_est, dim=1, keepdim=True).type(torch.long)
+    wta_index_map = torch.argmax(prob_volume, dim=1, keepdim=True).type(torch.long)
     wta_depth_map = torch.gather(depth_value_mat, 1, wta_index_map).squeeze(1)
 
     if return_prob_map:
-        photometric_confidence = torch.max(depth_est, dim=1)[0] # output shape dimension B * H * W
+        photometric_confidence = torch.max(prob_volume, dim=1)[0] # output shape dimension B * H * W
         return masked_cross_entropy, wta_depth_map, photometric_confidence
     return masked_cross_entropy, wta_depth_map

@@ -100,7 +100,7 @@ class MVSDataset(Dataset):
             proj_matrices.append(proj_mat)
 
             if i == 0:  # reference view
-                depth_values = np.arange(depth_min, depth_interval * self.ndepths + depth_min, depth_interval,
+                depth_values = 1.0/np.linspace(1.0/depth_min, 1.0/(depth_interval * self.ndepths + depth_min), self.ndepths,
                                          dtype=np.float32)
                 mask = self.read_img(mask_filename)
                 depth = self.read_depth(depth_filename)
@@ -108,18 +108,12 @@ class MVSDataset(Dataset):
         imgs = np.stack(imgs).transpose([0, 3, 1, 2])
         proj_matrices = np.stack(proj_matrices)
 
-        return {"imgs": imgs,
+        return {
+                "imgs": imgs,
                 "proj_matrices": proj_matrices,
                 "depth": depth,
                 "depth_values": depth_values,
                 "mask": mask,
-                "intrinsics":intrinsics_list,
-                "extrinsics":extrinsics_list,
-                "depth_planes":{
-                    "depth_start":depth_min,
-                    "number":self.ndepths,
-                    "depth_interval":depth_interval,
-                    }
                 }
 
 
