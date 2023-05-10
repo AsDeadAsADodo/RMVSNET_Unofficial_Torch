@@ -97,7 +97,7 @@ def save_depth():
     TestImgLoader = DataLoader(test_dataset, args.batch_size, shuffle=False, num_workers=4, drop_last=False)
 
     # model
-    model = MVSNet(refine=False)
+    model = MVSNet(refine=True,test=True)
     model = nn.DataParallel(model)
     model.cuda()
 
@@ -299,8 +299,8 @@ def filter_depth(scan_folder, out_folder, plyfilename):
 
 if __name__ == '__main__':
     # step1. save all the depth maps and the masks in outputs directory
-    # save_depth()
-
+    save_depth()
+    '''
     with open(args.testlist) as f:
         scans = f.readlines()
         scans = [line.rstrip() for line in scans]
@@ -311,3 +311,4 @@ if __name__ == '__main__':
         out_folder = os.path.join(args.outdir, scan)
         # step2. filter saved depth maps with photometric confidence maps and geometric constraints
         filter_depth(scan_folder, out_folder, os.path.join(args.outdir, 'mvsnet{:0>3}_l3.ply'.format(scan_id)))
+        '''

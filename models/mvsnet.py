@@ -116,11 +116,12 @@ class RefineNet(nn.Module):
 
 
 class MVSNet(nn.Module):
-    def __init__(self, refine=True):
+    def __init__(self, refine=True,test=False):
         super(MVSNet, self).__init__()
         self.refine = refine
         self.feature = FeatureNet()
         self.cost_regularization = CostConvGRURegNet()
+        self.test = test
         
         if self.refine:
             self.refine_network = RefineNet()
@@ -168,18 +169,26 @@ class MVSNet(nn.Module):
             costs_volume_reg.append(cost_map_reg)
             
         prob_volume = torch.cat(costs_volume_reg, 1).squeeze(2)
-        #print(prob_volume.shape)
         softmax_probs = torch.softmax(prob_volume, 1)
 
-        return {'prob_volume': softmax_probs}
 
-        
-        # step 4. depth map refinement
-        #if not self.refine:
-            #return {"depth": depth, "photometric_confidence": prob_image}
-        #else:
-            #refined_depth = self.refine_network(torch.cat((imgs[0], depth), 1))
-            #return {"depth": depth, "refined_depth": refined_depth, "photometric_confidence": prob_image}
+
+        if self.test:
+            wta_index_map = torch.argmax(softmax_probs,dim=1,keepdim=True).type(torch.long)
+            depth_values_mat = depth_values.repeat(H,W,1,1).permute(2,3,0,1)
+            wta_depth_map = torch.gather(depth_values_mat,1,wta_index_map).squeeze(1)
+            photometric_confidence = torch.max(softmax_probs,dim=1)[0]
+            if self.refine:
+                wta_depth_map = self.refine_network(torch.cat((imgs[0], wta_depth_map), 1))
+            return {'depth':wta_depth_map,'photometric_confidence':photometric_confidence}
+        else:
+            if self.refine:
+                wta_index_map = torch.argmax(softmax_probs,dim=1,keepdim=True).type(torch.long)
+                depth_values_mat = depth_values.repeat(H,W,1,1).permute(2,3,0,1)
+                wta_depth_map = torch.gather(depth_values_mat,1,wta_index_map).squeeze(1)
+                photometric_confidence = torch.max(softmax_probs,dim=1)[0]
+                wta_depth_map = self.refine_network(torch.cat((imgs[0], wta_depth_map), 1))
+            return {'prob_volume':softmax_probs}
 
 
 def mvsnet_loss(prob_volume, depth_gt, mask,depth_value,return_prob_map=False):

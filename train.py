@@ -80,7 +80,7 @@ TrainImgLoader = DataLoader(train_dataset, args.batch_size, shuffle=True, num_wo
 TestImgLoader = DataLoader(test_dataset, args.batch_size, shuffle=False, num_workers=4, drop_last=False)
 
 # model, optimizer
-model = MVSNet(refine=False)
+model = MVSNet(refine=True)
 if args.mode in ["train", "test"]:
     model = nn.DataParallel(model)
 model.cuda()
