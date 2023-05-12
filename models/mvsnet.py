@@ -42,17 +42,19 @@ class CostConvGRURegNet(nn.Module):
         self.convGRUCell1 = ConvGRUCell(input_channel=gru1_input_channel,kernel=[3,3],output_channel=gru1_output_channel)
         self.convGRUCell2 = ConvGRUCell(input_channel=gru1_output_channel,kernel=[3,3],output_channel=gru2_output_channel)
         self.convGRUCell3 = ConvGRUCell(input_channel=gru2_output_channel,kernel=[3,3],output_channel=gru3_output_channel)
-        #self.conv2d = nn.Conv2d(2, 1, (3,3),padding=1)
         self.prob = nn.Conv2d(2, 1, 3, 1, 1)
+
+    def init_hidden(self,shape,device):
+        B,H,W = shape
+        self.h1 = Variable(torch.zeros((B,16,H,W), dtype=torch.float,device=device))
+        self.h2 = Variable(torch.zeros((B,4,H,W), dtype=torch.float,device=device))
+        self.h3 = Variable(torch.zeros((B,2,H,W), dtype=torch.float,device=device))
         
     def forward(self,x):
         B,C,H,W = x.shape
-        state1 = Variable(torch.zeros((B,16,H,W), dtype=torch.float,device=x.device))
-        state2 = Variable(torch.zeros((B,4,H,W), dtype=torch.float,device=x.device))
-        state3 = Variable(torch.zeros((B,2,H,W), dtype=torch.float,device=x.device))
-        cost_1,h1 = self.convGRUCell1(x,state1)
-        cost_2,h2 = self.convGRUCell2(cost_1,state2)
-        cost_3,h3 = self.convGRUCell3(cost_2,state3)
+        cost_1,self.h1 = self.convGRUCell1(x,self.h1)
+        cost_2,self.h2 = self.convGRUCell2(cost_1,self.h2)
+        cost_3,self.h3 = self.convGRUCell3(cost_2,self.h3)
         return self.prob(cost_3)
 
     
@@ -152,7 +154,7 @@ class MVSNet(nn.Module):
         gru1_input_channel = C
         gru1_output_channel = 16
         
-            
+        self.cost_regularization.init_hidden(ref_feature.shape,ref_feature.device)
         for d in range(num_depth):
             # build cost map
             ave_feature = ref_feature
